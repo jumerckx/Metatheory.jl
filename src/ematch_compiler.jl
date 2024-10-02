@@ -38,7 +38,7 @@ function ematch_compile(p, pvars, direction)
 
   ematch_compile!(p, state, state.first_nonground)
 
-  push!(state.program, yield_expr(state.patvar_to_addr, direction))
+  push!(state.program, yield_expr(state.patvar_to_addr, direction, state.memsize))
 
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
@@ -49,6 +49,7 @@ function ematch_compile(p, pvars, direction)
       root_id::$(Metatheory.Id),
       stack::$(Metatheory.OptBuffer){UInt16},
       ematch_buffer::$(Metatheory.OptBuffer){UInt128},
+      all_buffer::$(Metatheory.OptBuffer){UInt128}
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
@@ -80,7 +81,7 @@ function ematch_compile(p, pvars, direction)
         end
       ) for (i, code) in enumerate(state.program)]...)
 
-      error("unreachable code!")
+      error("unreachable code! $pc")
 
       @label backtrack
       pc = pop!(stack)
@@ -124,6 +125,7 @@ ematch_compile_ground!(::AbstractPat, ::EMatchCompilerState, ::Int) = nothing
 
 # Ground e-matchers
 function ematch_compile_ground!(p::Union{PatExpr,PatLiteral}, state::EMatchCompilerState, addr::Int)
+  return nothing
   haskey(state.ground_terms_to_addr, p) && return nothing
 
   if isground(p)
@@ -191,13 +193,41 @@ end
 
 
 function ematch_compile!(p::PatLiteral, state::EMatchCompilerState, addr::Int)
-  push!(state.program, check_eq_expr(addr, state.ground_terms_to_addr[p]))
+  push!(state.enode_idx_addresses, addr)
+  push!(state.program, bind_expr(addr, p))
 end
 
 
 # ==============================================================
 # Actual Instructions
 # ==============================================================
+
+function bind_expr(addr, p::PatLiteral)
+  quote
+    eclass = g[$(Symbol(:σ, addr))]
+    eclass_length = length(eclass.nodes)
+    if $(Symbol(:enode_idx, addr)) <= eclass_length
+      push!(stack, pc)
+      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
+      v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
+      v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
+      v_head(n) === $(v_head(p.n)) || @goto $(Symbol(:skip_node, addr))
+
+      pc += 0x0001
+      $(Symbol(:enode_idx, addr)) += 1
+      @goto compute
+
+      @label $(Symbol(:skip_node, addr))
+      # This node did not match. Try next node and backtrack.
+      $(Symbol(:enode_idx, addr)) += 1
+      @goto backtrack
+    end
+
+    # # Restart from first option
+    $(Symbol(:enode_idx, addr)) = 1
+    @goto backtrack
+  end
+end
 
 function bind_expr(addr, p::PatExpr, memrange)
   quote
@@ -214,6 +244,7 @@ function bind_expr(addr, p::PatExpr, memrange)
 
       # Node has matched.
       $([:($(Symbol(:σ, j)) = n[$i + $VECEXPR_META_LENGTH]) for (i, j) in enumerate(memrange)]...)
+
       pc += 0x0001
       $(Symbol(:enode_idx, addr)) += 1
       @goto compute
@@ -320,17 +351,23 @@ function lookup_expr(addr, p::AbstractPat)
   end
 end
 
-function yield_expr(patvar_to_addr, direction)
+function yield_expr(patvar_to_addr, direction, n)
   push_exprs = [
     :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
     addr in patvar_to_addr
   ]
+  append!(push_exprs, [
+    :(push!(all_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
+    addr in 1:n-1
+  ])
   quote
     g.needslock && lock(g.lock)
     push!(ematch_buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
     $(push_exprs...)
     # Add delimiter to buffer. 
     push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
+    push!(all_buffer, 0xffffffffffffffffffffffffffffffff)
+
     n_matches += 1
     g.needslock && unlock(g.lock)
     @goto backtrack

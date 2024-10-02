@@ -68,11 +68,13 @@ function eqsat_search!(
   scheduler::AbstractScheduler,
   report::SaturationReport,
   ematch_buffer::OptBuffer{UInt128},
+  all_match_buffer::OptBuffer{UInt128},
 )::Int
   n_matches = 0
 
   g.needslock && lock(g.lock)
   empty!(ematch_buffer)
+  empty!(all_match_buffer)
   g.needslock && unlock(g.lock)
 
 
@@ -90,16 +92,16 @@ function eqsat_search!(
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
-        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
-        inform!(scheduler, rule_idx, i, n_matches)
+        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer, all_match_buffer)
+        inform!(scheduler, rule_idx, i, n_matches, all_match_buffer)
       end
 
       if is_bidirectional(rule)
         ids_right = cached_ids(g, rule.right)
         for i in ids_right
           cansearch(scheduler, rule_idx, i) || continue
-          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
-          inform!(scheduler, rule_idx, i, n_matches)
+          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer, all_match_buffer)
+          inform!(scheduler, rule_idx, i, n_matches, all_match_buffer)
         end
       end
 
@@ -107,7 +109,7 @@ function eqsat_search!(
       # if n_matches - prev_matches > 2 && rule_idx == 2
       #   @debug buffer_readable(g, old_len)
       # end
-      inform!(scheduler, rule_idx, n_matches)
+      inform!(scheduler, rule_idx, n_matches, all_match_buffer)
     end
   end
 
@@ -127,6 +129,7 @@ function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id
   for i in v_children_range(p.n)
     @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
   end
+  # add!(g, p.n, metadata(g, p.head, p.n), true)
   add!(g, p.n, nothing, true)
 end
 
@@ -282,10 +285,10 @@ function eqsat_step!(
   report::SaturationReport,
   ematch_buffer::OptBuffer{UInt128},
 )
-
+  all_match_buffer = OptBuffer{UInt128}(64)
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
+  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer, all_match_buffer)
 
   @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer)
 

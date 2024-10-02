@@ -66,7 +66,9 @@ function rebuild! end
 # ===========================================================================
 
 @inline inform!(::AbstractScheduler, ::Int, ::Int) = nothing
+@inline inform!(s::AbstractScheduler, i::Int, n_matches::Int, ematch_buffer) = inform!(s, i, n_matches)
 @inline inform!(::AbstractScheduler, ::Int, ::Id, ::Int) = nothing
+@inline inform!(s::AbstractScheduler, i::Int, eclass_id::Id, n_matches::Int, ematch_buffer) = inform!(s, i, eclass_id, n_matches)
 @inline setiter!(::AbstractScheduler, ::Int) = nothing
 @inline rebuild!(::AbstractScheduler) = nothing
 
