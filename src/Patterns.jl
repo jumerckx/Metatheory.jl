@@ -5,7 +5,7 @@ using AutoHashEquals
 using TermInterface
 using Metatheory.VecExprModule
 
-import Metatheory: to_expr
+import Metatheory: to_expr, typedhash
 
 export AbstractPat, PatLiteral, PatVar, PatExpr, PatSegment, patvars, setdebrujin!, isground, constants
 
@@ -26,7 +26,7 @@ isground(p::AbstractPat) = false
 struct PatLiteral <: AbstractPat
   value
   n::VecExpr
-  PatLiteral(val) = new(val, VecExpr(Id[0, 0, 0, hash(val)]))
+  PatLiteral(val) = new(val, VecExpr(Id[0, 0, 0, typedhash(val)]))
 end
 
 PatLiteral(p::AbstractPat) = throw(DomainError(p, "Cannot construct a pattern literal of another pattern object."))
@@ -91,10 +91,10 @@ struct PatExpr <: AbstractPat
   """
   n::VecExpr
   function PatExpr(iscall, op, qop, args::Vector)
-    op_hash = hash(op)
-    qop_hash = hash(qop)
+    op_hash = typedhash(op)
+    qop_hash = typedhash(qop)
     ar = length(args)
-    signature = hash(qop, hash(ar))
+    signature = typedhash(qop, hash(ar))
 
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)

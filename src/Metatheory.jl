@@ -11,6 +11,9 @@ function to_expr end
 Base.@inline maybe_quote_operation(x::Union{Function,DataType}) = nameof(x)
 Base.@inline maybe_quote_operation(x) = x
 
+typedhash(x) = Base.hash(typeof(x), Base.hash(x))
+typedhash(x, h) = Base.hash(typeof(x), Base.hash(x, h))
+
 include("docstrings.jl")
 
 include("vecexpr.jl")

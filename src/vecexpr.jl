@@ -1,5 +1,7 @@
 module VecExprModule
 
+import Metatheory: typedhash
+
 export Id,
   VecExpr,
   VECEXPR_FLAG_ISTREE,
@@ -70,7 +72,7 @@ Compute the hash of a `VecExpr` and store it as the first element.
 """
 @inline function v_hash!(n::VecExpr)::Id
   if iszero(n.data[1])
-    n.data[1] = hash(@view n.data[2:end])
+    n.data[1] = typedhash(@view n.data[2:end])
   else
     # h = hash(@view n[2:end])
     # @assert h == n[1]

@@ -1,6 +1,6 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
-
+import Metatheory: typedhash
 
 """
     modify!(eclass::EClass{Analysis})
@@ -175,7 +175,7 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
 
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
-  h = hash(c)
+  h = typedhash(c)
   get!(g.constants, h, c)
   h
 end
@@ -313,7 +313,7 @@ function addexpr!(g::EGraph, se)::Id
   h = iscall(e) ? operation(e) : head(e)
   v_set_head!(n, add_constant!(g, h))
   # get the signature from op and arity
-  v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
+  v_set_signature!(n, typedhash(maybe_quote_operation(h), hash(ar)))
   for i in v_children_range(n)
     @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
   end
