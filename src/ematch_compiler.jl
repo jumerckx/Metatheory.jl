@@ -38,7 +38,7 @@ function ematch_compile(p, pvars, direction)
 
   ematch_compile!(p, state, state.first_nonground)
 
-  push!(state.program, yield_expr(state.patvar_to_addr, direction, state.memsize))
+  push!(state.program, yield_expr(state.patvar_to_addr, direction, state.memsize, state.enode_idx_addresses))
 
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
@@ -351,14 +351,14 @@ function lookup_expr(addr, p::AbstractPat)
   end
 end
 
-function yield_expr(patvar_to_addr, direction, n)
+function yield_expr(patvar_to_addr, direction, n, enode_idx_addresses)
   push_exprs = [
     :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
     addr in patvar_to_addr
   ]
   append!(push_exprs, [
     :(push!(all_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
-    addr in 1:n-1
+    addr in enode_idx_addresses
   ])
   quote
     g.needslock && lock(g.lock)
