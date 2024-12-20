@@ -74,6 +74,7 @@ Base.@kwdef struct RewriteRule{Op<:Function}
   stack::OptBuffer{UInt16} = OptBuffer{UInt16}(STACK_SIZE)
   lhs_original = nothing
   rhs_original = nothing
+  unsafe::Bool = false
 end
 
 function --> end
