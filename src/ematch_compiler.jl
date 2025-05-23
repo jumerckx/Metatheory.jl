@@ -94,11 +94,11 @@ function ematch_compile(p, pvars, direction)
 end
 
 
-check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :(has_constant(g, $(last(p.n))) || return 0))
+check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :($has_constant(g, $(last(p.n))) || return 0))
 check_constant_exprs!(buf, ::AbstractPat) = buf
 function check_constant_exprs!(buf, p::PatExpr)
   if !(p.head isa AbstractPat)
-    push!(buf, :(has_constant(g, $(p.head_hash)) || has_constant(g, $(p.quoted_head_hash)) || return 0))
+    push!(buf, :($has_constant(g, $(p.head_hash)) || $has_constant(g, $(p.quoted_head_hash)) || return 0))
   end
   for child in children(p)
     check_constant_exprs!(buf, child)

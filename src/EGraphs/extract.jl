@@ -15,7 +15,7 @@ function Extractor(g::EGraph, cost_function::Function, cost_type = Float64)
   extractor
 end
 
-function extract_expr_recursive(g::EGraph{T, A}, n::VecExpr, get_node::Function) where {T, A}
+function extract_expr_recursive(g::EGraph{T,A}, n::VecExpr, get_node::Function) where {T,A}
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return h
   children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
@@ -65,11 +65,8 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
           has_all || break
         end
         if has_all
-          cost = extractor.cost_function(
-            n,
-            get_constant(extractor.g, v_head(n)),
-            map(child_id -> extractor.costs[IdKey(child_id)][1], v_children(n)),
-          )
+          cost =
+            extractor.cost_function(n, extractor.g, map(child_id -> extractor.costs[IdKey(child_id)][1], v_children(n)))
           if cost < min_cost
             min_cost = cost
             min_cost_node_idx = idx
@@ -113,4 +110,3 @@ end
 function extract!(g::EGraph, costfun, root = g.root, cost_type = Float64)
   Extractor(g, costfun, cost_type)(root)
 end
-
