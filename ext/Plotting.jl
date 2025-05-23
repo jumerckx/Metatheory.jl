@@ -3,6 +3,7 @@ module Plotting
 using GraphViz
 using Metatheory
 using TermInterface
+import Metatheory: render_egraph!, render_eclass!, render_enode_node!, render_enode_edges!
 
 function render_egraph!(io::IO, g::EGraph)
   print(

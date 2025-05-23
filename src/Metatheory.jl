@@ -1,5 +1,7 @@
 module Metatheory
 
+include("plotting_stubs.jl")
+
 using TermInterface: isexpr
 using Reexport
 
